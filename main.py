@@ -12,21 +12,24 @@ with open("smalltest.csv") as csvfile:
 
     rows = rows[1:]
 
-distanceMeasureMethodCount = 6
 approaches = ['distance', 'jaro', 'jaro_winkler', 'ratio', 'seqratio', 'setratio']
+distanceMeasureMethodCount = len(approaches)
+
 rowcount = len(rows)
 colcount = len(rows[0])
+
 comparisons = int((rowcount * rowcount - rowcount) / 2)
 
-res = [[0 for x in range(2 + distanceMeasureMethodCount)] for x in range(comparisons)]
+res = [[0 for x in range(2 + distanceMeasureMethodCount)] for y in range(comparisons)]
 i = 0
 start_time = time.time()
-
 
 for cand1 in range(0, 100):
     for cand2 in range(cand1 + 1, len(rows)):
         cand1Str = ''
         cand2Str = ''
+
+    # this routine makes sure we don't compare two cells in which only one row has an entry, but the other one doesn't
         for col in range(0, colcount):
             if (rows[cand1][col] != '') & (rows[cand2][col] != ''):
                 val1 = rows[cand1][col].upper()
@@ -49,9 +52,12 @@ for cand1 in range(0, 100):
         if i % 1000 == 0:
             print(i)
 
-res = res[:(i - 1)]
+res = res[:(i - 1)]  # this makes sure the result set has not more entries than needed. Theoretically this is
+# unnecessary, but its neat for testing purposes
+
 elapsed_time = time.time() - start_time
 
+# this routine outputs all tuples which have very high probability to be a duplicate (one for each metric used)
 for approach in range(distanceMeasureMethodCount):
     distances = [row[approach] for row in res]
     min_index, min_value = min(enumerate(distances), key=operator.itemgetter(1))
@@ -61,4 +67,5 @@ for approach in range(distanceMeasureMethodCount):
     index = min_index if approach in [0] else max_index
     print('Minimum ' + approaches[approach] + ': ' + str(val) + ' for tuples:\n' + str(
         rows[res[index][-2]]) + ' \n->\n' + str(rows[res[index][-1]]))
+
 print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))

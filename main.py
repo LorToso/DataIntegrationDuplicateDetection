@@ -1,7 +1,8 @@
 import Levenshtein as lv
+import statistics
 import csv
 
-with open("inputDB.csv") as csvfile:
+with open("smallInput.csv") as csvfile:
     filereader = csv.reader(csvfile)
     list = []
     for row in filereader:
@@ -13,5 +14,8 @@ with open("inputDB.csv") as csvfile:
         for cand2 in range(cand1 + 1, len(list)):
             res.append(lv.distance(''.join(list[cand1]), ''.join(list[cand2])))
             i += 1
-            if i % 100 == 0:
+            if i % 10000 == 0:
                 print(i)
+    print('Minimum: ' + str(min(res)))
+    print('Maximum: ' + str(max(res)))
+    print('Median: ' + str(statistics.median(res)))

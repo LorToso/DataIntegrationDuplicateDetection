@@ -26,8 +26,13 @@ for cand1 in range(0, 100):
         cand2Str = ''
         for col in range(0, colcount):
             if (rows[cand1][col] != '') & (rows[cand2][col] != ''):
-                cand1Str += rows[cand1][col]
-                cand2Str += rows[cand2][col]
+                val1 = rows[cand1][col].upper()
+                val2 = rows[cand2][col].upper()
+                if col == 1 | col == 3:
+                    val1 = val1 + val1 + val1  # this basically adds weight 3 to the names
+                    val2 = val2 + val2 + val2  # this basically adds weight 3 to the names
+                cand1Str += val1
+                cand2Str += val2
 
         res[i][0] = lv.distance(cand1Str, cand2Str)
         res[i][1] = lv.jaro(cand1Str, cand2Str)
@@ -41,7 +46,7 @@ for cand1 in range(0, 100):
         if i % 1000 == 0:
             print(i)
 
-res = res[:(i-1)]
+res = res[:(i - 1)]
 
 for approach in range(distanceMeasureMethodCount):
     distances = [row[approach] for row in res]

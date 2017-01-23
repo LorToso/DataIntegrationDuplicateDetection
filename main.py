@@ -1,7 +1,11 @@
 import csv
-with open("D:\home\MEGA\TU-Berlin\Data Integration\DuplicateDetection\inputDB.csv") as csvfile:
+with open("inputDB.csv") as csvfile:
     filereader = csv.reader(csvfile)
+    list = []
     for row in filereader:
-        print(', '.join(row))
+        list.append(row)
+    for row in list:
+        print(row)
+
 
 

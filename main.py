@@ -2,6 +2,7 @@ import Levenshtein as lv
 import statistics
 import csv
 import operator
+import time
 
 with open("smalltest.csv") as csvfile:
     filereader = csv.reader(csvfile)
@@ -19,6 +20,8 @@ comparisons = int((rowcount * rowcount - rowcount) / 2)
 
 res = [[0 for x in range(2 + distanceMeasureMethodCount)] for x in range(comparisons)]
 i = 0
+start_time = time.time()
+
 
 for cand1 in range(0, 100):
     for cand2 in range(cand1 + 1, len(rows)):
@@ -47,6 +50,7 @@ for cand1 in range(0, 100):
             print(i)
 
 res = res[:(i - 1)]
+elapsed_time = time.time() - start_time
 
 for approach in range(distanceMeasureMethodCount):
     distances = [row[approach] for row in res]
@@ -57,3 +61,4 @@ for approach in range(distanceMeasureMethodCount):
     index = min_index if approach in [0] else max_index
     print('Minimum ' + approaches[approach] + ': ' + str(val) + ' for tuples:\n' + str(
         rows[res[index][-2]]) + ' \n->\n' + str(rows[res[index][-1]]))
+print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))

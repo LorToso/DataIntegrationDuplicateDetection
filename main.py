@@ -68,4 +68,13 @@ for approach in range(distanceMeasureMethodCount):
     print('Minimum ' + approaches[approach] + ': ' + str(val) + ' for tuples:\n' + str(
         rows[res[index][-2]]) + ' \n->\n' + str(rows[res[index][-1]]))
 
+thresh = 15
+filteredRes = filter(lambda r: r[0] < thresh, res)
+
+for result in filteredRes:
+    print('Possible Duplicate (d=' + str(result[0]) + '):')
+    print(str(rows[result[-2]]) + ' \n->\n' + str(rows[result[-1]]))
+
+
+
 print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))

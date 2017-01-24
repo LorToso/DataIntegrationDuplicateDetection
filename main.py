@@ -4,7 +4,7 @@ import csv
 import operator
 import time
 
-with open("smalltest.csv") as csvfile:
+with open("inputDB.csv") as csvfile:
     filereader = csv.reader(csvfile)
     rows = []
     for row in filereader:
@@ -18,13 +18,16 @@ distanceMeasureMethodCount = len(approaches)
 rowcount = len(rows)
 colcount = len(rows[0])
 
-comparisons = int((rowcount * rowcount - rowcount) / 2)
+MAX = 10
+# MAX = rowcount
+
+comparisons = int(rowcount * MAX - (MAX * MAX - MAX) / 2)
 
 res = [[0 for x in range(2 + distanceMeasureMethodCount)] for y in range(comparisons)]
 i = 0
 start_time = time.time()
 
-for cand1 in range(0, 100):
+for cand1 in range(0, MAX):
     for cand2 in range(cand1 + 1, len(rows)):
         cand1Str = ''
         cand2Str = ''
@@ -58,21 +61,22 @@ res = res[:(i - 1)]  # this makes sure the result set has not more entries than 
 elapsed_time = time.time() - start_time
 
 # this routine outputs all tuples which have very high probability to be a duplicate (one for each metric used)
-for approach in range(distanceMeasureMethodCount):
-    distances = [row[approach] for row in res]
-    min_index, min_value = min(enumerate(distances), key=operator.itemgetter(1))
-    max_index, max_value = max(enumerate(distances), key=operator.itemgetter(1))
+# for approach in range(distanceMeasureMethodCount):
+#     distances = [row[approach] for row in res]
+#     min_index, min_value = min(enumerate(distances), key=operator.itemgetter(1))
+#     max_index, max_value = max(enumerate(distances), key=operator.itemgetter(1))
+#
+#     val = min_value if approach in [0] else max_value
+#     index = min_index if approach in [0] else max_index
+#     print('Minimum ' + approaches[approach] + ': ' + str(val) + ' for tuples:\n' + str(
+#         rows[res[index][-2]]) + ' \n->\n' + str(rows[res[index][-1]]))
 
-    val = min_value if approach in [0] else max_value
-    index = min_index if approach in [0] else max_index
-    print('Minimum ' + approaches[approach] + ': ' + str(val) + ' for tuples:\n' + str(
-        rows[res[index][-2]]) + ' \n->\n' + str(rows[res[index][-1]]))
-
-thresh = 15
-filteredRes = filter(lambda r: r[0] < thresh, res)
+checkedMetric = 3
+thresh = 0.85
+filteredRes = filter(lambda r: r[checkedMetric] > thresh, res)
 
 for result in filteredRes:
-    print('Possible Duplicate (d=' + str(result[0]) + '):')
+    print('Possible Duplicate (d=' + str(result[checkedMetric]) + '):')
     print(str(rows[result[-2]]) + ' \n->\n' + str(rows[result[-1]]))
 
 

@@ -3,8 +3,8 @@ import csv
 import time
 
 
-def deduplicate(file):
-    rows = read_csv(file)
+def deduplicate(infile, outfile):
+    rows = read_csv(infile)
 
     approaches = ['distance', 'jaro', 'jaro_winkler', 'ratio', 'seqratio', 'setratio']
     distance_measure_method_count = len(approaches)
@@ -42,6 +42,41 @@ def deduplicate(file):
 
     print_possible_duplicates(checked_metric, duplicates, rows)
 
+    clusters = create_duplicate_clusters(duplicates, rows)
+
+    sorted_clusters = to_sorted_cluster_list(clusters)
+
+    print_clusters(sorted_clusters)
+
+    write_clusters_to_file(outfile, sorted_clusters)
+
+    print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+
+
+def write_clusters_to_file(outfile, sorted_clusters):
+    f = open(outfile, 'w')
+    for row in sorted_clusters:
+        f.write(str(row[0]) + "," + str(row[1]) + '\n')
+    f.close()
+
+
+def print_clusters(sorted_clusters):
+    for row in sorted_clusters:
+        print(str(row[0]) + ", " + str(row[1]))
+
+
+def to_sorted_cluster_list(clusters):
+    cluster_list = alloc_2d_list(len(clusters), 2)
+    i = 0
+    for record_id, cluster in clusters.items():
+        cluster_list[i][0] = cluster
+        cluster_list[i][1] = record_id
+        i += 1
+    sorted_clusters = sorted(cluster_list, key=lambda r: r[0])
+    return sorted_clusters
+
+
+def create_duplicate_clusters(duplicates, rows):
     clusters = {}
     cluster_id = 1
     for result in duplicates:
@@ -69,12 +104,7 @@ def deduplicate(file):
     for result in filter(lambda row: row[0] not in clusters, rows):
         clusters[result[0]] = cluster_id
         cluster_id += 1
-
-    print('clusters:')
-    for (record_id, cluster) in clusters.items():
-        print(str(record_id) + '->' + str(cluster))
-
-    print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+    return clusters
 
 
 def print_possible_duplicates(checked_metric, filtered_result, rows):
@@ -126,7 +156,11 @@ def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
 
 
 def allocate_result_table(comparisons_needed, distance_measure_method_count):
-    return [[0 for x in range(2 + distance_measure_method_count)] for y in range(comparisons_needed)]
+    return alloc_2d_list(comparisons_needed, 2 + distance_measure_method_count)
+
+
+def alloc_2d_list(rows, cols):
+    return [[0 for x in range(cols)] for y in range(rows)]
 
 
 def read_csv(file):
@@ -139,4 +173,4 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-deduplicate("smalltest.csv")
+deduplicate("smalltest.csv", "out.csv")

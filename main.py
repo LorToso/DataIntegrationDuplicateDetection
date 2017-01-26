@@ -37,36 +37,42 @@ def deduplicate(file):
 
     checked_metric = 3
     threshold = 0.85
-    filtered_result = list(filter(lambda r: r[checked_metric] > threshold, res))
 
-    print_possible_duplicates(checked_metric, filtered_result, rows)
+    duplicates = list(filter(lambda r: r[checked_metric] > threshold, res))
 
+    print_possible_duplicates(checked_metric, duplicates, rows)
 
-    clusters = []
-    clusterID = 1
-    for result in filtered_result:
-        row1 = rows[result[-2]]
-        row2 = rows[result[-1]]
-        clusters.append([clusterID, row1[0]])
-        clusters.append([clusterID, row2[0]])
-        clusterID += 1
+    clusters = {}
+    cluster_id = 1
+    for result in duplicates:
+        tuple_0_id = rows[result[-2]][0]
+        tuple_1_id = rows[result[-1]][0]
+        tuple_0_already_clustered = tuple_0_id in clusters
+        tuple_1_already_clustered = tuple_1_id in clusters
 
-    clusterCol1 = [row[1] for row in clusters]
-    for comparisons_performed in range(1, len(clusterCol1)):
-        try:
-            foundIndex = clusterCol1.index(clusterCol1[comparisons_performed], 0, comparisons_performed)  # the ID is already in a different cluster!
-            clusterToBeMerged = clusters[foundIndex][0]
-            myCluster = clusters[comparisons_performed][0]
+        if not tuple_0_already_clustered and not tuple_1_already_clustered:
+            clusters[tuple_0_id] = cluster_id
+            clusters[tuple_1_id] = cluster_id
+            cluster_id += 1
+        elif not tuple_0_already_clustered and tuple_1_already_clustered:
+            clusters[tuple_0_id] = clusters[tuple_1_id]
+        elif tuple_0_already_clustered and not tuple_1_already_clustered:
+            clusters[tuple_1_id] = clusters[tuple_0_id]
+        elif tuple_0_already_clustered and tuple_1_already_clustered:
+            cluster_0 = clusters[tuple_0_id]
+            cluster_1 = clusters[tuple_1_id]
+            for record_id, cluster in clusters.items():
+                if cluster == cluster_1:
+                    clusters[record_id] = cluster_0
 
-            for row in clusters:
-                if row[0] == myCluster:
-                    row[0] = clusterToBeMerged
-        except ValueError:  # not found
-            continue
+    # this is not very efficient.... but it works!
+    for result in filter(lambda row: row[0] not in clusters, rows):
+        clusters[result[0]] = cluster_id
+        cluster_id += 1
 
     print('clusters:')
-    for row in clusters:
-        print(str(row))
+    for (record_id, cluster) in clusters.items():
+        print(str(record_id) + '->' + str(cluster))
 
     print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
 
@@ -119,8 +125,9 @@ def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
     return tuple_0_string, tuple_1_string
 
 
-def allocate_result_table(comparisons_needed, distanceMeasureMethodCount):
-    return [[0 for x in range(2 + distanceMeasureMethodCount)] for y in range(comparisons_needed)]
+def allocate_result_table(comparisons_needed, distance_measure_method_count):
+    return [[0 for x in range(2 + distance_measure_method_count)] for y in range(comparisons_needed)]
+
 
 def read_csv(file):
     with open(file) as csv_file:

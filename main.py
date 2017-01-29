@@ -1,3 +1,5 @@
+import concurrent.futures
+
 import Levenshtein as lv
 import csv
 import time
@@ -31,7 +33,7 @@ def deduplicate(infile, outfile):
                                                 rows_to_compare_to, rows_to_deduplicate)
     # this makes sure the result set does not have more entries than needed.
     # Theoretically this is unnecessary, but its neat for testing purposes
-    res = res[:(comparisons_performed - 1)]
+    #res = res[:(comparisons_performed - 1)]
 
     elapsed_time = time.time() - start_time
 
@@ -116,24 +118,35 @@ def print_possible_duplicates(checked_metric, filtered_result, rows):
 
 
 def perform_comparisons(col_count, name_weight, res, rows, rows_to_compare_to, rows_to_deduplicate):
-    comparisons_performed = 0
-    for tuple_0_index in range(0, rows_to_deduplicate):
-        for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
-            tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
 
-            #res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][3] = lv.ratio(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][-2] = tuple_0_index
-            res[comparisons_performed][-1] = tuple_1_index
-            comparisons_performed += 1
-            if comparisons_performed % 1000 == 0:
-                print(comparisons_performed)
+    # for tuple_0_index in range(0, rows_to_deduplicate):
+    #     pass
 
-    return comparisons_performed
+    executor = concurrent.futures.ProcessPoolExecutor(2)
+    futures = [executor.submit(
+        compare(tuple_0_index, rows_to_compare_to, col_count, name_weight, res, rows),
+        tuple_0_index)
+        for tuple_0_index in range(0, rows_to_deduplicate)]
+    concurrent.futures.wait(futures)
+
+
+def compare(tuple_0_index, rows_to_compare_to, col_count, name_weight, res, rows):
+    # comparisons_performed = 0
+    for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
+        tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
+
+        # res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
+        # res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
+        # res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
+        lv.ratio(tuple_0_string, tuple_1_string)
+        # res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
+        # res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
+        # res[comparisons_performed][-2] = tuple_0_index
+        # res[comparisons_performed][-1] = tuple_1_index
+        # comparisons_performed += 1
+        # if comparisons_performed % 1000 == 0:
+        #    print(comparisons_performed)
+    # return comparisons_performed
 
 
 def stringify(col_count, name_weight, rows, tuple_0, tuple_1):

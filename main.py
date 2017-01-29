@@ -3,6 +3,8 @@ import csv
 import time
 import multiprocessing as mp
 
+#import xrange
+
 rows_to_deduplicate = 0
 rows_to_compare_to = 0
 col_count = 0
@@ -10,9 +12,6 @@ name_weight = 5
 rows = []
 comparisons_performed = 0
 res = []
-
-dict_res = {} # key=(tuple0, tuple1), value = distance
-
 
 def deduplicate(infile, outfile):
     global rows_to_deduplicate, rows_to_compare_to, col_count, rows, res, comparisons_performed
@@ -38,7 +37,7 @@ def deduplicate(infile, outfile):
 
     start_time = time.time()
 
-    perform_comparisons()
+    result = perform_comparisons()
     # this makes sure the result set does not have more entries than needed.
     # Theoretically this is unnecessary, but its neat for testing purposes
     # res = res[:(comparisons_performed - 1)]
@@ -60,10 +59,8 @@ def deduplicate(infile, outfile):
 
     # write_clusters_to_file(outfile, sorted_clusters)
 
-    print_dict()
-
     print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
-    # print('Comparisons Performed: {comparisons}'.format(comparisons=comparisons_performed))
+    print('Comparisons Performed: {comparisons}'.format(comparisons=len(result)))
 
 
 def write_clusters_to_file(outfile, sorted_clusters):
@@ -132,28 +129,33 @@ def perform_comparisons():
 
     pool_size = 5
     pool = mp.Pool(pool_size)
+
+    manager = mp.Manager()
+
+    result = manager.dict()
+
     items = range(0, rows_to_deduplicate)
     for tuple_0_index in items:
-        pool.apply_async(compare, (tuple_0_index,))
-        # print(len(dict_res))
+        pool.apply_async(compare, args=(tuple_0_index, result))
+
     pool.close()
     pool.join()
 
+    return result
 
-def compare(tuple_0_index):
-    global comparisons_performed, dict_res
+
+def compare(tuple_0_index, result):
     try:
         for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
             tuple_0_string, tuple_1_string = stringify(tuple_0_index, tuple_1_index)
             distance = lv.ratio(tuple_0_string, tuple_1_string)
             key = (tuple_0_index, tuple_1_index)
-            dict_res[key] = distance
+            result[key] = distance
             # The number of comparisons looked weird with multiprocessing,
             # I think the size of the dict (structure I used to avoid using comparisons_performed
             # as index, should reveal the number of tuples with different distances,
             # not necessarily the number of comparisons. That number might be useful for our report
             # but can be theoretically calculated (number of for-loops / number of threads).
-        # print(len(dict_res))
     except:
         print('error comparing tuple')
 
@@ -195,10 +197,5 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-
-def print_dict():
-    print(len(dict_res))
-    for key, value in dict_res.items():
-        print(key, value)
 
 deduplicate("smalltest.csv", "out.csv")

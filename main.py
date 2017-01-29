@@ -18,7 +18,7 @@ def deduplicate(infile, outfile):
     rows_to_deduplicate = row_count
     rows_to_compare_to = row_count
 
-    name_weight = 3
+    name_weight = 5
 
     comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
                              - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
@@ -121,12 +121,12 @@ def perform_comparisons(col_count, name_weight, res, rows, rows_to_compare_to, r
         for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
             tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
 
-            res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
+            #res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
+            #res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
+            #res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
             res[comparisons_performed][3] = lv.ratio(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
+            #res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
+            #res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
             res[comparisons_performed][-2] = tuple_0_index
             res[comparisons_performed][-1] = tuple_1_index
             comparisons_performed += 1

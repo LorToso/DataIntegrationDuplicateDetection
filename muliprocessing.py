@@ -1,35 +1,40 @@
-import concurrent
-from multiprocessing.pool import ThreadPool as Pool
+import multiprocessing as mp
 import random
 
 import time
 from pip._vendor.requests.packages.urllib3.connectionpool import xrange
 
+items = [random.random() for _ in xrange(10000)]
+
 
 def multiprocessing():
     pool_size = 5
-    pool = Pool(pool_size)
-    items = [random.random() for _ in xrange(10000)]
+    pool = mp.Pool(pool_size)
 
-    for x in range(0, 10000):
-        pool.apply_async(worker, (items,))
+    for item in items:
+        pool.apply_async(worker, (item,))
 
     pool.close()
     pool.join()
 
 
-def worker(items):
-    for item in items:
-        try:
-            y = item + 1
-        except:
-            print('error with item')
+def worker(item):
+    try:
+        my_function(item)
+    except:
+        print('error with item')
+
+
+def my_function(item):
+    for x in range(0, 10000):
+        #some operation
+        comparison = (x == item)
 
 
 def normal():
-    items = [random.random() for _ in xrange(10000)]
-    for x in range(0, 10000):
-        worker(items)
+
+    for item in items:
+        worker(item)
 
 if __name__ == '__main__':
     start_time = time.time()

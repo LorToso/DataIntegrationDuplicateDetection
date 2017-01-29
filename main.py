@@ -1,11 +1,21 @@
-import concurrent.futures
-
 import Levenshtein as lv
 import csv
 import time
+import multiprocessing as mp
+
+rows_to_deduplicate = 0
+rows_to_compare_to = 0
+col_count = 0
+name_weight = 5
+rows = []
+comparisons_performed = 0
+res = []
+
+dict_res = {} # key=(tuple0, tuple1), value = distance
 
 
 def deduplicate(infile, outfile):
+    global rows_to_deduplicate, rows_to_compare_to, col_count, rows, res, comparisons_performed
     rows = read_csv(infile)
 
     approaches = ['distance', 'jaro', 'jaro_winkler', 'ratio', 'seqratio', 'setratio']
@@ -19,40 +29,41 @@ def deduplicate(infile, outfile):
     # rows_to_compare_to = 20000
     rows_to_deduplicate = row_count
     rows_to_compare_to = row_count
+    # name_weight = 5
 
-    name_weight = 5
+    # comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
+    #                          - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
 
-    comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
-                             - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
-
-    res = allocate_result_table(comparisons_needed, distance_measure_method_count)
+    # res = allocate_result_table(comparisons_needed, distance_measure_method_count)
 
     start_time = time.time()
 
-    comparisons_performed = perform_comparisons(col_count, name_weight, res, rows,
-                                                rows_to_compare_to, rows_to_deduplicate)
+    perform_comparisons()
     # this makes sure the result set does not have more entries than needed.
     # Theoretically this is unnecessary, but its neat for testing purposes
-    #res = res[:(comparisons_performed - 1)]
+    # res = res[:(comparisons_performed - 1)]
 
     elapsed_time = time.time() - start_time
 
     checked_metric = 3
     threshold = 0.85
 
-    duplicates = list(filter(lambda r: r[checked_metric] > threshold, res))
+    # duplicates = list(filter(lambda r: r[checked_metric] > threshold, res))
 
-    print_possible_duplicates(checked_metric, duplicates, rows)
+    # print_possible_duplicates(checked_metric, duplicates, rows)
 
-    clusters = create_duplicate_clusters(duplicates, rows)
+    # clusters = create_duplicate_clusters(duplicates, rows)
 
-    sorted_clusters = to_sorted_cluster_list(clusters)
+    # sorted_clusters = to_sorted_cluster_list(clusters)
 
-    print_clusters(sorted_clusters)
+    # print_clusters(sorted_clusters)
 
-    write_clusters_to_file(outfile, sorted_clusters)
+    # write_clusters_to_file(outfile, sorted_clusters)
+
+    print_dict()
 
     print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+    # print('Comparisons Performed: {comparisons}'.format(comparisons=comparisons_performed))
 
 
 def write_clusters_to_file(outfile, sorted_clusters):
@@ -117,39 +128,37 @@ def print_possible_duplicates(checked_metric, filtered_result, rows):
         print(str(row1) + ' \n->\n' + str(row2))
 
 
-def perform_comparisons(col_count, name_weight, res, rows, rows_to_compare_to, rows_to_deduplicate):
+def perform_comparisons():
 
-    # for tuple_0_index in range(0, rows_to_deduplicate):
-    #     pass
-
-    executor = concurrent.futures.ProcessPoolExecutor(2)
-    futures = [executor.submit(
-        compare(tuple_0_index, rows_to_compare_to, col_count, name_weight, res, rows),
-        tuple_0_index)
-        for tuple_0_index in range(0, rows_to_deduplicate)]
-    concurrent.futures.wait(futures)
-
-
-def compare(tuple_0_index, rows_to_compare_to, col_count, name_weight, res, rows):
-    # comparisons_performed = 0
-    for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
-        tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
-
-        # res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
-        # res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
-        # res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
-        lv.ratio(tuple_0_string, tuple_1_string)
-        # res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
-        # res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
-        # res[comparisons_performed][-2] = tuple_0_index
-        # res[comparisons_performed][-1] = tuple_1_index
-        # comparisons_performed += 1
-        # if comparisons_performed % 1000 == 0:
-        #    print(comparisons_performed)
-    # return comparisons_performed
+    pool_size = 5
+    pool = mp.Pool(pool_size)
+    items = range(0, rows_to_deduplicate)
+    for tuple_0_index in items:
+        pool.apply_async(compare, (tuple_0_index,))
+        # print(len(dict_res))
+    pool.close()
+    pool.join()
 
 
-def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
+def compare(tuple_0_index):
+    global comparisons_performed, dict_res
+    try:
+        for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
+            tuple_0_string, tuple_1_string = stringify(tuple_0_index, tuple_1_index)
+            distance = lv.ratio(tuple_0_string, tuple_1_string)
+            key = (tuple_0_index, tuple_1_index)
+            dict_res[key] = distance
+            # The number of comparisons looked weird with multiprocessing,
+            # I think the size of the dict (structure I used to avoid using comparisons_performed
+            # as index, should reveal the number of tuples with different distances,
+            # not necessarily the number of comparisons. That number might be useful for our report
+            # but can be theoretically calculated (number of for-loops / number of threads).
+        # print(len(dict_res))
+    except:
+        print('error comparing tuple')
+
+
+def stringify(tuple_0, tuple_1):
     tuple_0_string = ''
     tuple_1_string = ''
     # this routine makes sure we don't compare two cells in which only one row has an entry, but the other
@@ -185,5 +194,11 @@ def read_csv(file):
 
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
+
+
+def print_dict():
+    print(len(dict_res))
+    for key, value in dict_res.items():
+        print(key, value)
 
 deduplicate("smalltest.csv", "out.csv")

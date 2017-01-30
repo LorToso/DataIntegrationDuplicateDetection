@@ -38,20 +38,18 @@ def deduplicate(infile, outfile):
 
     elapsed_time = time.time() - start_time
 
-    #checked_metric =
     threshold = 0.85
-    print(result.values())
-    duplicates = list(filter(lambda r: r > threshold, result.values()))
+    duplicates = {k: v for k, v in result.items() if v > threshold}
 
-    #print_possible_duplicates(checked_metric, duplicates, rows)
+    print_possible_duplicates(duplicates)
 
-    #clusters = create_duplicate_clusters(duplicates, rows)
+    clusters = create_duplicate_clusters(duplicates)
 
-    # sorted_clusters = to_sorted_cluster_list(clusters)
+    sorted_clusters = to_sorted_cluster_list(clusters)
 
-    # print_clusters(sorted_clusters)
+    print_clusters(sorted_clusters)
 
-    # write_clusters_to_file(outfile, sorted_clusters)
+    write_clusters_to_file(outfile, sorted_clusters)
 
     print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
     print('Comparisons Performed: {comparisons}'.format(comparisons=len(result)))
@@ -80,12 +78,12 @@ def to_sorted_cluster_list(clusters):
     return sorted_clusters
 
 
-def create_duplicate_clusters(duplicates, rows):
+def create_duplicate_clusters(duplicates):
     clusters = {}
     cluster_id = 1
-    for result in duplicates:
-        tuple_0_id = rows[result[-2]][0]
-        tuple_1_id = rows[result[-1]][0]
+    for key, value in duplicates.items():
+        tuple_0_id = rows[key[0]][0]
+        tuple_1_id = rows[key[1]][0]
         tuple_0_already_clustered = tuple_0_id in clusters
         tuple_1_already_clustered = tuple_1_id in clusters
 
@@ -111,11 +109,11 @@ def create_duplicate_clusters(duplicates, rows):
     return clusters
 
 
-def print_possible_duplicates(checked_metric, filtered_result, rows):
-    for result in filtered_result:
-        row1 = rows[result[-2]]
-        row2 = rows[result[-1]]
-        print('Possible Duplicate (d=' + str(result[checked_metric]) + '):')
+def print_possible_duplicates(filtered_result):
+    for key, value in filtered_result.items():
+        row1 = rows[key[0]]
+        row2 = rows[key[1]]
+        print('Possible Duplicate (d=' + str(value) + '):')
         print(str(row1) + ' \n->\n' + str(row2))
 
 

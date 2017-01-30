@@ -9,11 +9,10 @@ col_count = 0
 name_weight = 5
 rows = []
 comparisons_performed = 0
-res = []
 
 
 def deduplicate(infile, outfile):
-    global rows_to_deduplicate, rows_to_compare_to, col_count, rows, res, comparisons_performed
+    global rows_to_deduplicate, rows_to_compare_to, col_count, rows, comparisons_performed
     rows = read_csv(infile)
 
     approaches = ['distance', 'jaro', 'jaro_winkler', 'ratio', 'seqratio', 'setratio']
@@ -27,30 +26,26 @@ def deduplicate(infile, outfile):
     # rows_to_compare_to = 20000
     rows_to_deduplicate = row_count
     rows_to_compare_to = row_count
-    # name_weight = 5
 
-    # comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
-    #                          - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
+    name_weight = 5
 
-    # res = allocate_result_table(comparisons_needed, distance_measure_method_count)
+    comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
+                             - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
 
     start_time = time.time()
 
     result = perform_comparisons()
-    # this makes sure the result set does not have more entries than needed.
-    # Theoretically this is unnecessary, but its neat for testing purposes
-    # res = res[:(comparisons_performed - 1)]
 
     elapsed_time = time.time() - start_time
 
-    checked_metric = 3
+    #checked_metric =
     threshold = 0.85
+    print(result.values())
+    duplicates = list(filter(lambda r: r > threshold, result.values()))
 
-    # duplicates = list(filter(lambda r: r[checked_metric] > threshold, res))
+    #print_possible_duplicates(checked_metric, duplicates, rows)
 
-    # print_possible_duplicates(checked_metric, duplicates, rows)
-
-    # clusters = create_duplicate_clusters(duplicates, rows)
+    #clusters = create_duplicate_clusters(duplicates, rows)
 
     # sorted_clusters = to_sorted_cluster_list(clusters)
 
@@ -125,7 +120,6 @@ def print_possible_duplicates(checked_metric, filtered_result, rows):
 
 
 def perform_comparisons():
-
     pool_size = 5
     pool = mp.Pool(pool_size)
 

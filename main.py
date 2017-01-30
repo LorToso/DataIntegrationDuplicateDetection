@@ -2,6 +2,7 @@ import Levenshtein as lv
 import csv
 import time
 import gc
+import math
 
 rows_to_skip = set()
 
@@ -20,12 +21,13 @@ def deduplicate(infile, outfile):
     # rows_to_deduplicate = 10
     # rows_to_compare_to = 20000
 
-    rows_per_run = 10
+    rows_per_run = 100
     rows_to_compare_to = row_count
     rows_to_deduplicate_start = int(0)
     rows_to_deduplicate_end = rows_to_deduplicate_start + rows_per_run
 
-    for i in range(1, 100):
+    run_count = math.ceil(row_count/rows_per_run)+1
+    for i in range(1, run_count):
         rows_to_deduplicate_end = min(row_count, rows_to_deduplicate_end)
 
         start_time = time.time()
@@ -190,4 +192,4 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-deduplicate("inputDB.csv", "out.csv")
+deduplicate("smallInput.csv", "out.csv")

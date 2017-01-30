@@ -19,30 +19,42 @@ def deduplicate(infile, outfile):
     # rows_to_deduplicate = 10
     # rows_to_compare_to = 20000
     rows_to_deduplicate_start = int(0)
-    rows_to_deduplicate_end = row_count
-    rows_to_compare_to = row_count
+    rows_to_deduplicate_end = rows_to_deduplicate_start + int(100)
+    for i in range(1, 100):
+        rows_to_compare_to = row_count
 
-    start_time = time.time()
+        name_weight = 5
 
-    res = perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
+        start_time = time.time()
 
-    elapsed_time = time.time() - start_time
+        res = perform_comparisons(col_count, name_weight, rows,
+                                                rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
 
-    threshold = 0.85
+        elapsed_time = time.time() - start_time
 
-    duplicates = list(filter(lambda r: r[0] > threshold, res))
+        threshold = 0.85
 
-    print_possible_duplicates(0, duplicates, rows)
+        duplicates = list(filter(lambda r: r[0] > threshold, res))
 
-    clusters = create_duplicate_clusters(duplicates, rows)
+        print_possible_duplicates(0, duplicates, rows)
 
-    sorted_clusters = to_sorted_cluster_list(clusters)
+        clusters = create_duplicate_clusters(duplicates, rows)
 
-    print_clusters(sorted_clusters)
+        sorted_clusters = to_sorted_cluster_list(clusters)
 
-    write_clusters_to_file(outfile, sorted_clusters)
+        print_clusters(sorted_clusters)
 
-    print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+        write_clusters_to_file(outfile + str(i), sorted_clusters)
+
+        rows_to_deduplicate_start = rows_to_deduplicate_end
+        rows_to_deduplicate_end += 100
+
+        print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+        del res
+        del duplicates
+        del clusters
+        del sorted_clusters
+        gc.collect()
 
 
 def write_clusters_to_file(outfile, sorted_clusters):

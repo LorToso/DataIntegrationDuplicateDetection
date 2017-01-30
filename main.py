@@ -1,6 +1,7 @@
 import Levenshtein as lv
 import csv
 import time
+import gc
 
 rows_to_skip = set()
 
@@ -18,17 +19,18 @@ def deduplicate(infile, outfile):
     # The following variables are just for testing purposes
     # rows_to_deduplicate = 10
     # rows_to_compare_to = 20000
-    rows_to_deduplicate_start = int(0)
-    rows_to_deduplicate_end = rows_to_deduplicate_start + int(100)
-    for i in range(1, 100):
-        rows_to_compare_to = row_count
 
-        name_weight = 5
+    rows_per_run = 10
+    rows_to_compare_to = row_count
+    rows_to_deduplicate_start = int(0)
+    rows_to_deduplicate_end = rows_to_deduplicate_start + rows_per_run
+
+    for i in range(1, 100):
+        rows_to_deduplicate_end = min(row_count, rows_to_deduplicate_end)
 
         start_time = time.time()
 
-        res = perform_comparisons(col_count, name_weight, rows,
-                                                rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
+        res = perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
 
         elapsed_time = time.time() - start_time
 
@@ -47,7 +49,7 @@ def deduplicate(infile, outfile):
         write_clusters_to_file(outfile + str(i), sorted_clusters)
 
         rows_to_deduplicate_start = rows_to_deduplicate_end
-        rows_to_deduplicate_end += 100
+        rows_to_deduplicate_end += rows_per_run
 
         print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
         del res
@@ -188,4 +190,4 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-deduplicate("smallInput.csv", "out.csv")
+deduplicate("inputDB.csv", "out.csv")

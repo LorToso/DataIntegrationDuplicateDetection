@@ -2,6 +2,12 @@ import Levenshtein as lv
 import csv
 import time
 
+rows_to_skip = set()
+
+last_name_weight = 2
+first_name_weight = 5
+ssn_weight = 2
+
 
 def deduplicate(infile, outfile):
     rows = read_csv(infile)
@@ -12,16 +18,13 @@ def deduplicate(infile, outfile):
     # The following variables are just for testing purposes
     # rows_to_deduplicate = 10
     # rows_to_compare_to = 20000
-    rows_to_deduplicate_start = int(2 * row_count/3)
-    rows_to_deduplicate_end = rows_to_deduplicate_start + int(1)
+    rows_to_deduplicate_start = int(0)
+    rows_to_deduplicate_end = row_count
     rows_to_compare_to = row_count
-
-    name_weight = 5
 
     start_time = time.time()
 
-    res = perform_comparisons(col_count, name_weight, rows,
-                                                rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
+    res = perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
 
     elapsed_time = time.time() - start_time
 
@@ -104,14 +107,24 @@ def print_possible_duplicates(checked_metric, filtered_result, rows):
         print(str(row1) + ' \n->\n' + str(row2))
 
 
-def perform_comparisons(col_count, name_weight, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end):
+def perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end):
     res = []
     i = 0
     for tuple_0_index in range(rows_to_deduplicate_start, rows_to_deduplicate_end):
-        for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
-            tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
+        if tuple_0_index in rows_to_skip:
+            continue
 
-            res.append([lv.ratio(tuple_0_string, tuple_1_string), tuple_0_index, tuple_1_index])
+        for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
+            if tuple_1_index in rows_to_skip:
+                continue
+
+            tuple_0_string, tuple_1_string = stringify(col_count, rows, tuple_0_index, tuple_1_index)
+
+            distance = lv.ratio(tuple_0_string, tuple_1_string)
+            res.append([distance, tuple_0_index, tuple_1_index])
+
+            if distance > 0.9:
+                rows_to_skip.add(tuple_1_index)
 
             i += 1
             if i % 100000 == 0:
@@ -119,7 +132,7 @@ def perform_comparisons(col_count, name_weight, rows, rows_to_compare_to, rows_t
     return res
 
 
-def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
+def stringify(col_count, rows, tuple_0, tuple_1):
     tuple_0_string = ''
     tuple_1_string = ''
     # this routine makes sure we don't compare two cells in which only one row has an entry, but the other
@@ -130,9 +143,16 @@ def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
             val1 = rows[tuple_1][column].upper()
 
             # this adds weight to the names
-            if column == 1 | column == 3:
-                val0 *= name_weight
-                val1 *= name_weight
+            if column == 1:
+                val0 *= first_name_weight
+                val1 *= first_name_weight
+            elif column == 3:
+                val0 *= last_name_weight
+                val1 *= last_name_weight
+            elif column == 10:
+                val0 *= ssn_weight
+                val1 *= ssn_weight
+
             tuple_0_string += val0
             tuple_1_string += val1
     return tuple_0_string, tuple_1_string
@@ -143,7 +163,7 @@ def allocate_result_table(comparisons_needed,):
 
 
 def alloc_2d_list(rows, cols):
-    return [[0 for x in range(cols)] for y in range(rows)]
+    return [[0 for _ in range(cols)] for _ in range(rows)]
 
 
 def read_csv(file):
@@ -156,4 +176,4 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-deduplicate("inputDB.csv", "out.csv")
+deduplicate("smallInput.csv", "out.csv")

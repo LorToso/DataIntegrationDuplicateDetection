@@ -3,8 +3,6 @@ import csv
 import time
 import multiprocessing as mp
 
-#import xrange
-
 rows_to_deduplicate = 0
 rows_to_compare_to = 0
 col_count = 0
@@ -12,6 +10,7 @@ name_weight = 5
 rows = []
 comparisons_performed = 0
 res = []
+
 
 def deduplicate(infile, outfile):
     global rows_to_deduplicate, rows_to_compare_to, col_count, rows, res, comparisons_performed
@@ -131,7 +130,6 @@ def perform_comparisons():
     pool = mp.Pool(pool_size)
 
     manager = mp.Manager()
-
     result = manager.dict()
 
     items = range(0, rows_to_deduplicate)
@@ -145,17 +143,19 @@ def perform_comparisons():
 
 
 def compare(tuple_0_index, result):
+    aux = {}
     try:
         for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
             tuple_0_string, tuple_1_string = stringify(tuple_0_index, tuple_1_index)
             distance = lv.ratio(tuple_0_string, tuple_1_string)
             key = (tuple_0_index, tuple_1_index)
-            result[key] = distance
+            aux[key] = distance
             # The number of comparisons looked weird with multiprocessing,
             # I think the size of the dict (structure I used to avoid using comparisons_performed
             # as index, should reveal the number of tuples with different distances,
             # not necessarily the number of comparisons. That number might be useful for our report
             # but can be theoretically calculated (number of for-loops / number of threads).
+        result.update(aux)
     except:
         print('error comparing tuple')
 

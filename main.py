@@ -1,13 +1,18 @@
 import Levenshtein as lv
 import csv
 import time
+import gc
+import math
+
+rows_to_skip = set()
+
+last_name_weight = 2
+first_name_weight = 5
+ssn_weight = 2
 
 
 def deduplicate(infile, outfile):
     rows = read_csv(infile)
-
-    approaches = ['distance', 'jaro', 'jaro_winkler', 'ratio', 'seqratio', 'setratio']
-    distance_measure_method_count = len(approaches)
 
     row_count = len(rows)
     col_count = len(rows[0])
@@ -15,42 +20,45 @@ def deduplicate(infile, outfile):
     # The following variables are just for testing purposes
     # rows_to_deduplicate = 10
     # rows_to_compare_to = 20000
-    rows_to_deduplicate = row_count
+
+    rows_per_run = 100
     rows_to_compare_to = row_count
+    rows_to_deduplicate_start = int(0)
+    rows_to_deduplicate_end = rows_to_deduplicate_start + rows_per_run
 
-    name_weight = 5
+    run_count = math.ceil(row_count/rows_per_run)+1
+    for i in range(1, run_count):
+        rows_to_deduplicate_end = min(row_count, rows_to_deduplicate_end)
 
-    comparisons_needed = int(rows_to_compare_to * rows_to_deduplicate
-                             - (rows_to_deduplicate * rows_to_deduplicate - rows_to_deduplicate) / 2)
+        start_time = time.time()
 
-    res = allocate_result_table(comparisons_needed, distance_measure_method_count)
+        res = perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end)
 
-    start_time = time.time()
+        elapsed_time = time.time() - start_time
 
-    comparisons_performed = perform_comparisons(col_count, name_weight, res, rows,
-                                                rows_to_compare_to, rows_to_deduplicate)
-    # this makes sure the result set does not have more entries than needed.
-    # Theoretically this is unnecessary, but its neat for testing purposes
-    res = res[:(comparisons_performed - 1)]
+        threshold = 0.85
 
-    elapsed_time = time.time() - start_time
+        duplicates = list(filter(lambda r: r[0] > threshold, res))
 
-    checked_metric = 3
-    threshold = 0.85
+        print_possible_duplicates(0, duplicates, rows)
 
-    duplicates = list(filter(lambda r: r[checked_metric] > threshold, res))
+        clusters = create_duplicate_clusters(duplicates, rows)
 
-    print_possible_duplicates(checked_metric, duplicates, rows)
+        sorted_clusters = to_sorted_cluster_list(clusters)
 
-    clusters = create_duplicate_clusters(duplicates, rows)
+        print_clusters(sorted_clusters)
 
-    sorted_clusters = to_sorted_cluster_list(clusters)
+        write_clusters_to_file(outfile + str(i), sorted_clusters)
 
-    print_clusters(sorted_clusters)
+        rows_to_deduplicate_start = rows_to_deduplicate_end
+        rows_to_deduplicate_end += rows_per_run
 
-    write_clusters_to_file(outfile, sorted_clusters)
-
-    print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+        print('Elapsed Time: {time} seconds '.format(time=str(elapsed_time)))
+        del res
+        del duplicates
+        del clusters
+        del sorted_clusters
+        gc.collect()
 
 
 def write_clusters_to_file(outfile, sorted_clusters):
@@ -101,9 +109,9 @@ def create_duplicate_clusters(duplicates, rows):
                     clusters[record_id] = cluster_0
 
     # this is not very efficient.... but it works!
-    for result in filter(lambda row: row[0] not in clusters, rows):
-        clusters[result[0]] = cluster_id
-        cluster_id += 1
+    #for result in filter(lambda row: row[0] not in clusters, rows):
+    #    clusters[result[0]] = cluster_id
+    #    cluster_id += 1
     return clusters
 
 
@@ -115,28 +123,32 @@ def print_possible_duplicates(checked_metric, filtered_result, rows):
         print(str(row1) + ' \n->\n' + str(row2))
 
 
-def perform_comparisons(col_count, name_weight, res, rows, rows_to_compare_to, rows_to_deduplicate):
-    comparisons_performed = 0
-    for tuple_0_index in range(0, rows_to_deduplicate):
+def perform_comparisons(col_count, rows, rows_to_compare_to, rows_to_deduplicate_start, rows_to_deduplicate_end):
+    res = []
+    i = 0
+    for tuple_0_index in range(rows_to_deduplicate_start, rows_to_deduplicate_end):
+        if tuple_0_index in rows_to_skip:
+            continue
+
         for tuple_1_index in range(tuple_0_index + 1, rows_to_compare_to):
-            tuple_0_string, tuple_1_string = stringify(col_count, name_weight, rows, tuple_0_index, tuple_1_index)
+            if tuple_1_index in rows_to_skip:
+                continue
 
-            #res[comparisons_performed][0] = lv.distance(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][1] = lv.jaro(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][2] = lv.jaro_winkler(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][3] = lv.ratio(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][4] = lv.seqratio(tuple_0_string, tuple_1_string)
-            #res[comparisons_performed][5] = lv.setratio(tuple_0_string, tuple_1_string)
-            res[comparisons_performed][-2] = tuple_0_index
-            res[comparisons_performed][-1] = tuple_1_index
-            comparisons_performed += 1
-            if comparisons_performed % 1000 == 0:
-                print(comparisons_performed)
+            tuple_0_string, tuple_1_string = stringify(col_count, rows, tuple_0_index, tuple_1_index)
 
-    return comparisons_performed
+            distance = lv.ratio(tuple_0_string, tuple_1_string)
+            res.append([distance, tuple_0_index, tuple_1_index])
+
+            if distance > 0.9:
+                rows_to_skip.add(tuple_1_index)
+
+            i += 1
+            if i % 100000 == 0:
+                print(i)
+    return res
 
 
-def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
+def stringify(col_count, rows, tuple_0, tuple_1):
     tuple_0_string = ''
     tuple_1_string = ''
     # this routine makes sure we don't compare two cells in which only one row has an entry, but the other
@@ -147,20 +159,27 @@ def stringify(col_count, name_weight, rows, tuple_0, tuple_1):
             val1 = rows[tuple_1][column].upper()
 
             # this adds weight to the names
-            if column == 1 | column == 3:
-                val0 *= name_weight
-                val1 *= name_weight
+            if column == 1:
+                val0 *= first_name_weight
+                val1 *= first_name_weight
+            elif column == 3:
+                val0 *= last_name_weight
+                val1 *= last_name_weight
+            elif column == 10:
+                val0 *= ssn_weight
+                val1 *= ssn_weight
+
             tuple_0_string += val0
             tuple_1_string += val1
     return tuple_0_string, tuple_1_string
 
 
-def allocate_result_table(comparisons_needed, distance_measure_method_count):
-    return alloc_2d_list(comparisons_needed, 2 + distance_measure_method_count)
+def allocate_result_table(comparisons_needed,):
+    return alloc_2d_list(comparisons_needed, 3)
 
 
 def alloc_2d_list(rows, cols):
-    return [[0 for x in range(cols)] for y in range(rows)]
+    return [[0 for _ in range(cols)] for _ in range(rows)]
 
 
 def read_csv(file):
@@ -173,4 +192,4 @@ def read_csv(file):
         rows = rows[1:]  # The first row is skipped as it contains only column names
         return rows
 
-deduplicate("smalltest.csv", "out.csv")
+deduplicate("smallInput.csv", "out.csv")
